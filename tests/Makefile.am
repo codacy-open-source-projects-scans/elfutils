@@ -209,6 +209,7 @@ TESTS = run-arextract.sh run-arsymtest.sh run-ar.sh newfile test-nlist \
 	run-disasm-riscv64.sh \
 	run-pt_gnu_prop-tests.sh \
 	run-getphdrnum.sh run-test-includes.sh \
+	run-debuginfod-client-profile.sh \
 	leb128 read_unaligned \
 	msg_tst system-elf-libelf-test system-elf-gelf-test \
 	$(asm_TESTS) run-disasm-bpf.sh run-low_high_pc-dw-form-indirect.sh \
@@ -319,7 +320,7 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     hello_i386.ko.bz2 hello_x86_64.ko.bz2 \
 	     hello_ppc64.ko.bz2 hello_s390.ko.bz2 hello_aarch64.ko.bz2 \
 	     hello_m68k.ko.bz2 hello_riscv64.ko.bz2 hello_csky.ko.bz2 \
-	     hello_arc_hs4.ko.bz2 \
+	     hello_arc_hs4.ko.bz2 hello_hexagon.ko.bz2 \
 	     run-unstrip-test.sh run-unstrip-test2.sh \
 	     testfile-info-link.bz2 testfile-info-link.debuginfo.bz2 \
 	     testfile-info-link.stripped.bz2 run-unstrip-test3.sh \
@@ -636,6 +637,7 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     testfile_pt_gnu_prop.bz2 testfile_pt_gnu_prop32.bz2 \
 	     run-getphdrnum.sh testfile-phdrs.elf.bz2 \
 	     run-test-includes.sh run-low_high_pc-dw-form-indirect.sh \
+	     run-debuginfod-client-profile.sh \
 	     run-readelf-dw-form-indirect.sh testfile-dw-form-indirect.bz2 \
 	     run-nvidia-extended-linemap-libdw.sh run-nvidia-extended-linemap-readelf.sh \
 	     testfile_nvidia_linemap.bz2 \
@@ -839,7 +841,7 @@ declfiles_LDADD = $(libdw)
 BUILT_SOURCES = libelf.h
 CLEANFILES += libelf.h
 libelf.h: $(top_srcdir)/libelf/libelf.h
-	cp $< $@
+	ln -s $< $@
 if !INSTALL_ELFH
 system_elf_libelf_test_CPPFLAGS =
 system_elf_gelf_test_CPPFLAGS = -I.
