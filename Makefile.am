@@ -77,10 +77,17 @@ coverage-clean:
 coverage: $(COVERAGE_OUTPUT_INDEX_HTML)
 	@echo 'file://$(abs_builddir)/$(COVERAGE_OUTPUT_INDEX_HTML)'
 
+if LCOV_OLD
+ignore_errors =
+else
+ignore_errors = --ignore-errors empty,negative
+endif
+
 $(COVERAGE_OUTPUT_INDEX_HTML): $(COVERAGE_OUTPUT_FILE)
 	LC_ALL=C $(GENHTML) \
 		--legend \
 		--show-details \
+		$(ignore_errors) \
 		--rc=genhtml_branch_coverage=1 \
 		--title='$(COVERAGE_TITLE)' \
 		--prefix='$(abspath $(abs_srcdir))' \
@@ -95,11 +102,11 @@ $(COVERAGE_OUTPUT_FILE):
 		--capture \
 		--no-external \
 		--no-checksum \
+		$(ignore_errors) \
 		--rc=lcov_branch_coverage=1 \
 		--gcov-tool='$(GCOV)' \
 		--output-file='$@' \
 		$(LCOV_DIRS_ARGS)
-
 endif
 
 # Tell version 3.79 and up of GNU make to not build goals in this
