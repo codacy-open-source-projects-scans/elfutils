@@ -34,6 +34,7 @@
 
 #include <libdw.h>
 #include <dwarf.h>
+#include "eu-search.h"
 
 
 /* Known location expressions already decoded.  */
@@ -215,22 +216,22 @@ struct Dwarf
   size_t pubnames_nsets;
 
   /* Search tree for the CUs.  */
-  void *cu_tree;
+  search_tree cu_tree;
   Dwarf_Off next_cu_offset;
 
   /* Search tree and sig8 hash table for .debug_types type units.  */
-  void *tu_tree;
+  search_tree tu_tree;
   Dwarf_Off next_tu_offset;
   Dwarf_Sig8_Hash sig8_hash;
 
   /* Search tree for split Dwarf associated with CUs in this debug.  */
-  void *split_tree;
+  search_tree split_tree;
 
   /* Search tree for .debug_macro operator tables.  */
-  void *macro_ops;
+  search_tree macro_ops_tree;
 
   /* Search tree for decoded .debug_line units.  */
-  void *files_lines;
+  search_tree files_lines_tree;
 
   /* Address ranges read from .debug_aranges.  */
   Dwarf_Aranges *aranges;
@@ -262,6 +263,10 @@ struct Dwarf
      an entry in the mem_tails array are not disturbed by new threads doing
      allocations for this Dwarf.  */
   pthread_rwlock_t mem_rwl;
+
+  /* The dwarf_lock is a read-write lock designed to ensure thread-safe access
+     and modification of an entire Dwarf object.  */
+  rwlock_define(, dwarf_lock);
 
   /* Internal memory handling.  This is basically a simplified thread-local
      reimplementation of obstacks.  Unfortunately the standard obstack
@@ -423,7 +428,7 @@ struct Dwarf_CU
   Dwarf_Files *files;
 
   /* Known location lists.  */
-  void *locs;
+  search_tree locs_tree;
 
   /* Base address for use with ranges and locs.
      Don't access directly, call __libdw_cu_base_address.  */
@@ -445,6 +450,13 @@ struct Dwarf_CU
   /* The start of the offset table in .debug_loclists.
      Don't access directly, call __libdw_cu_locs_base.  */
   Dwarf_Off locs_base;
+
+  /* Synchronize access to the abbrev member of a Dwarf_Die that
+     refers to this Dwarf_CU.  */
+  rwlock_define(, abbrev_lock);
+
+  /* Synchronize access to the split member of this Dwarf_CU.  */
+  rwlock_define(, split_lock);
 
   /* Memory boundaries of this CU.  */
   void *startp;
@@ -793,15 +805,28 @@ static inline Dwarf_Abbrev *
 __nonnull_attribute__ (1)
 __libdw_dieabbrev (Dwarf_Die *die, const unsigned char **readp)
 {
+  if (unlikely (die->cu == NULL))
+    {
+      die->abbrev = DWARF_END_ABBREV;
+      return DWARF_END_ABBREV;
+    }
+
+  rwlock_wrlock (die->cu->abbrev_lock);
+
   /* Do we need to get the abbreviation, or need to read after the code?  */
   if (die->abbrev == NULL || readp != NULL)
     {
       /* Get the abbreviation code.  */
       unsigned int code;
       const unsigned char *addr = die->addr;
-      if (unlikely (die->cu == NULL
-		    || addr >= (const unsigned char *) die->cu->endp))
-	return die->abbrev = DWARF_END_ABBREV;
+
+      if (addr >= (const unsigned char *) die->cu->endp)
+	{
+	  die->abbrev = DWARF_END_ABBREV;
+	  rwlock_unlock (die->cu->abbrev_lock);
+	  return DWARF_END_ABBREV;
+	}
+
       get_uleb128 (code, addr, die->cu->endp);
       if (readp != NULL)
 	*readp = addr;
@@ -810,7 +835,11 @@ __libdw_dieabbrev (Dwarf_Die *die, const unsigned char **readp)
       if (die->abbrev == NULL)
 	die->abbrev = __libdw_findabbrev (die->cu, code);
     }
-  return die->abbrev;
+
+  Dwarf_Abbrev *result = die->abbrev;
+  rwlock_unlock (die->cu->abbrev_lock);
+
+  return result;
 }
 
 /* Helper functions for form handling.  */
@@ -912,7 +941,8 @@ extern int __libdw_intern_expression (Dwarf *dbg,
 				      bool other_byte_order,
 				      unsigned int address_size,
 				      unsigned int ref_size,
-				      void **cache, const Dwarf_Block *block,
+				      search_tree *cache,
+				      const Dwarf_Block *block,
 				      bool cfap, bool valuep,
 				      Dwarf_Op **llbuf, size_t *listlen,
 				      int sec_index)
