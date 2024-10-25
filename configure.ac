@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 dnl Configure input file for elfutils.                     -*-autoconf-*-
 dnl
-dnl Copyright (C) 1996-2019 Red Hat, Inc.
+dnl Copyright (C) 1996-2019, 2024 Red Hat, Inc.
 dnl Copyright (C) 2022, 2023 Mark J. Wielaard <mark@klomp.org>
 dnl
 dnl This file is part of elfutils.
@@ -18,7 +18,7 @@ dnl  GNU General Public License for more details.
 dnl
 dnl  You should have received a copy of the GNU General Public License
 dnl  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-AC_INIT([elfutils],[0.191],[https://sourceware.org/bugzilla],[elfutils],[http://elfutils.org/])
+AC_INIT([elfutils],[0.192],[https://sourceware.org/bugzilla],[elfutils],[http://elfutils.org/])
 
 dnl Workaround for older autoconf < 2.64
 m4_ifndef([AC_PACKAGE_URL],
@@ -837,16 +837,7 @@ AC_ARG_ENABLE([debuginfod-ima-verification],[AS_HELP_STRING([--enable-debuginfod
 # Look for various packages, minimum versions as per rhel7.
 PKG_PROG_PKG_CONFIG
 PKG_CHECK_MODULES([libcurl],[libcurl >= 7.29.0],[have_libcurl=yes],[have_libcurl=no])
-AC_CHECK_LIB(pthread, pthread_setname_np, [AC_DEFINE([HAVE_PTHREAD_SETNAME_NP],[1],[Enable pthread_setname_np])])
 PKG_CHECK_MODULES([jsonc],[json-c >= 0.11],[have_jsonc=yes],[have_jsonc=no])
-PKG_CHECK_MODULES([libmicrohttpd],[libmicrohttpd >= 0.9.33],[],[enable_debuginfod=no])
-PKG_CHECK_MODULES([oldlibmicrohttpd],[libmicrohttpd < 0.9.51],[old_libmicrohttpd=yes],[old_libmicrohttpd=no])
-PKG_CHECK_MODULES([sqlite3],[sqlite3 >= 3.7.17],[have_sqlite3=yes],[have_sqlite3=no])
-PKG_CHECK_MODULES([libarchive],[libarchive >= 3.1.2],[have_libarchive=yes],[have_libarchive=no])
-AC_CHECK_LIB(rpm, headerGet, [AC_CHECK_DECL(RPMSIGTAG_FILESIGNATURES,
-                                            [AC_SUBST(rpm_LIBS, '-lrpm -lrpmio')],[], [#include <rpm/rpmlib.h>])])
-AC_CHECK_LIB(crypto, EVP_MD_CTX_new, [AC_SUBST(crypto_LIBS, '-lcrypto')])
-AC_CHECK_HEADER(imaevm.h)
 #
 # pronounce judgement on ability to build client, overridden by =yes/=no
 if test "x$enable_libdebuginfod" = "xno"; then
@@ -855,11 +846,15 @@ elif test "x$enable_libdebuginfod" = "xdummy"; then
    true
 elif test "x$have_jsonc$have_libcurl" = "xyesyes"; then
    enable_libdebuginfod=yes
-elif test "x$enable_libdebuginfod" = "xyes" -o "x$enable_libdebuginfod" = "xdummy"; then
-   AC_MSG_ERROR([unable to build libdebuginfod])
+elif test "x$enable_libdebuginfod" = "xyes"; then
+   AC_MSG_ERROR([unable to build libdebuginfod, missing libjson-c or libcurl])
 else
    enable_libdebuginfod=no
 fi
+PKG_CHECK_MODULES([libmicrohttpd],[libmicrohttpd >= 0.9.33],[],[enable_debuginfod=no])
+PKG_CHECK_MODULES([oldlibmicrohttpd],[libmicrohttpd < 0.9.51],[old_libmicrohttpd=yes],[old_libmicrohttpd=no])
+PKG_CHECK_MODULES([sqlite3],[sqlite3 >= 3.7.17],[have_sqlite3=yes],[have_sqlite3=no])
+PKG_CHECK_MODULES([libarchive],[libarchive >= 3.1.2],[have_libarchive=yes],[have_libarchive=no])
 #
 # pronounce judgement on ability to build server, overridden by =yes/=no
 if test "x$enable_debuginfod" = "xno"; then
@@ -867,18 +862,22 @@ if test "x$enable_debuginfod" = "xno"; then
 elif test "x$have_jsonc$HAVE_CXX11$have_libarchive$have_sqlite3" = "xyesyesyesyes"; then
    enable_debuginfod=yes
 elif test "x$enable_debuginfod" = "xyes"; then
-   AC_MSG_ERROR([unable to build debuginfod])
+   AC_MSG_ERROR([unable to build debuginfod, missing libmicrohttpd, sqlite3 or libarchive])
 else
    enable_debuginfod=no
 fi
 #
+AC_CHECK_LIB(rpm, headerGet, [AC_CHECK_DECL(RPMSIGTAG_FILESIGNATURES,
+                                            [AC_SUBST(rpm_LIBS, '-lrpm -lrpmio')],[], [#include <rpm/rpmlib.h>])])
+AC_CHECK_LIB(crypto, EVP_MD_CTX_new, [AC_SUBST(crypto_LIBS, '-lcrypto')])
+AC_CHECK_HEADER(imaevm.h)
 # pronounce judgment on ima signature support
 if test "x$enable_debuginfod_ima_verification" = "xno"; then
    true
 elif test "x$ac_cv_lib_rpm_headerGet$ac_cv_have_decl_RPMSIGTAG_FILESIGNATURES$ac_cv_lib_crypto_EVP_MD_CTX_new$ac_cv_header_imaevm_h" = "xyesyesyesyes"; then
    enable_debuginfod_ima_verification=yes
 elif test "x$enable_debuginfod_ima_verification" = "xyes"; then
-   AC_MSG_ERROR([unable to enable debuginfod ima verification])
+   AC_MSG_ERROR([unable to enable ima verification, missing librpm, libcrypto or imaevm.h])
 else
    enable_debuginfod_ima_verification=no
 fi
@@ -894,6 +893,8 @@ AS_IF([test "x$enable_debuginfod_ima_verification" = "xyes"],AC_DEFINE([ENABLE_I
 AS_IF([test "x$have_libarchive" = "xyes"],AC_DEFINE([HAVE_LIBARCHIVE],[1],[Define to 1 if libarchive is available]))
 AM_CONDITIONAL([ENABLE_IMA_VERIFICATION],[test "$enable_debuginfod_ima_verification" = "xyes"])
 AM_CONDITIONAL([OLD_LIBMICROHTTPD],[test "x$old_libmicrohttpd" = "xyes"])
+
+AC_CHECK_LIB(pthread, pthread_setname_np, [AC_DEFINE([HAVE_PTHREAD_SETNAME_NP],[1],[Enable pthread_setname_np])])
 
 dnl for /etc/profile.d/elfutils.{csh,sh}
 default_debuginfod_urls=""
@@ -917,6 +918,59 @@ AC_ARG_ENABLE(debuginfod-ima-cert-path,
             [default_debuginfod_ima_cert_path=""])
 AC_SUBST(DEBUGINFOD_IMA_CERT_PATH, $default_debuginfod_ima_cert_path)
 AC_CONFIG_FILES([config/profile.sh config/profile.csh config/profile.fish])
+
+# XXX Currently, eu-stacktrace can only work with sysprof/x86, hence:
+AC_ARG_ENABLE([stacktrace],AS_HELP_STRING([--enable-stacktrace], [Enable eu-stacktrace]))
+# check for x86, or more precisely _ASM_X86_PERF_REGS_H
+AS_IF([test "x$enable_stacktrace" = "xyes"], [
+   enable_stacktrace=no
+   AC_LANG([C])
+   AC_CACHE_CHECK([for _ASM_X86_PERF_REGS_H], ac_cv_has_asm_x86_perf_regs_h,
+      [AC_COMPILE_IFELSE([AC_LANG_SOURCE([
+#include <asm/perf_regs.h>
+#ifndef _ASM_X86_PERF_REGS_H
+#error "_ASM_X86_PERF_REGS_H not found"
+#endif
+])], ac_cv_has_asm_x86_perf_regs_h=yes, ac_cv_has_asm_x86_perf_regs_h=no)])
+   AS_IF([test "x$ac_cv_has_asm_x86_perf_regs_h" = xyes], [
+      enable_stacktrace=yes
+   ])
+   if test "x$enable_stacktrace" = "xno"; then
+      AC_MSG_ERROR([${program_prefix}stacktrace currently only supports x86, use --disable-stacktrace to disable.])
+   fi
+])
+# check for sysprof headers:
+AS_IF([test "x$enable_stacktrace" = "xyes"], [
+   enable_stacktrace=no
+   AC_CACHE_CHECK([for sysprof-6/sysprof-capture-types.h], ac_cv_has_sysprof_6_headers,
+      [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[#include <sysprof-6/sysprof-capture-types.h>]])],
+      ac_cv_has_sysprof_6_headers=yes, ac_cv_has_sysprof_6_headers=no)])
+   AS_IF([test "x$ac_cv_has_sysprof_6_headers" = xyes], [
+      AC_DEFINE(HAVE_SYSPROF_6_HEADERS)
+      enable_stacktrace=yes
+   ])
+   AH_TEMPLATE([HAVE_SYSPROF_6_HEADERS], [Define to 1 if `sysprof-6/sysprof-capture-types.h` is provided by the system, 0 otherwise.])
+   AC_CACHE_CHECK([for sysprof-4/sysprof-capture-types.h], ac_cv_has_sysprof_4_headers,
+      [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[#include <sysprof-4/sysprof-capture-types.h>]])],
+      ac_cv_has_sysprof_4_headers=yes, ac_cv_has_sysprof_4_headers=no)])
+   AS_IF([test "x$ac_cv_has_sysprof_4_headers" = xyes], [
+      AC_DEFINE(HAVE_SYSPROF_4_HEADERS)
+      enable_stacktrace=yes
+   ])
+   AH_TEMPLATE([HAVE_SYSPROF_4_HEADERS], [Define to 1 if `sysprof-4/sysprof-capture-types.h` is provided by the system, 0 otherwise.])
+   if test "x$enable_stacktrace" = "xno"; then
+      AC_MSG_ERROR([sysprof headers for ${program_prefix}stacktrace not found, use --disable-stacktrace to disable.])
+   fi
+],[
+   # If eu-stacktrace is disabled, also disable the automake conditionals:
+   ac_cv_has_sysprof_6_headers=no
+   ac_cv_has_sysprof_4_headers=no
+   # And make sure the feature listing shows 'no':
+   enable_stacktrace=no
+])
+AM_CONDITIONAL([HAVE_SYSPROF_6_HEADERS],[test "x$ac_cv_has_sysprof_6_headers" = xyes])
+AM_CONDITIONAL([HAVE_SYSPROF_4_HEADERS],[test "x$ac_cv_has_sysprof_4_headers" = xyes])
+AM_CONDITIONAL([ENABLE_STACKTRACE],[test "x$enable_stacktrace" = "xyes"])
 
 AC_OUTPUT
 
@@ -957,6 +1011,7 @@ AC_MSG_NOTICE([
     Default DEBUGINFOD_URLS            : ${default_debuginfod_urls}
     Debuginfod RPM sig checking        : ${enable_debuginfod_ima_verification} 
     Default DEBUGINFOD_IMA_CERT_PATH   : ${default_debuginfod_ima_cert_path}
+    ${program_prefix}stacktrace support              : ${enable_stacktrace}
 
   EXTRA TEST FEATURES (used with make check)
     have bunzip2 installed (required)  : ${HAVE_BUNZIP2}
