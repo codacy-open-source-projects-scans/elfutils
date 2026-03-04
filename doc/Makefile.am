@@ -91,8 +91,11 @@ notrans_dist_man3_MANS= elf32_checksum.3 \
 			elf_strptr.3 \
 			elf_update.3 \
 			elf_version.3 \
+			gelf_fsize.3 \
+			gelf_getchdr.3 \
 			gelf_getclass.3 \
 			gelf_getehdr.3 \
+			gelf_getphdr.3 \
 			gelf_getrel.3 \
 			gelf_getrela.3 \
 			gelf_getversym.3 \
@@ -105,6 +108,7 @@ notrans_dist_man3_MANS= elf32_checksum.3 \
 			gelf_newphdr.3 \
 			gelf_offscn.3 \
 			gelf_update_ehdr.3 \
+			gelf_update_phdr.3 \
 			gelf_update_shdr.3 \
 			gelf_update_rel.3 \
 			gelf_update_rela.3 \
@@ -113,6 +117,8 @@ notrans_dist_man3_MANS= elf32_checksum.3 \
 			gelf_update_verdaux.3 \
 			gelf_update_verneed.3 \
 			gelf_update_vernaux.3 \
+			gelf_xlatetof.3 \
+			gelf_xlatetom.3 \
 			libelf.3
 
 # libdebuginfod man pages (also notrans)
