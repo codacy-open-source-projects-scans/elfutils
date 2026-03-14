@@ -91,13 +91,22 @@ notrans_dist_man3_MANS= elf32_checksum.3 \
 			elf_strptr.3 \
 			elf_update.3 \
 			elf_version.3 \
+			gelf_checksum.3 \
 			gelf_fsize.3 \
+			gelf_getauxv.3 \
 			gelf_getchdr.3 \
 			gelf_getclass.3 \
+			gelf_getdyn.3 \
 			gelf_getehdr.3 \
+			gelf_getlib.3 \
+			gelf_getmove.3 \
+			gelf_getnote.3 \
 			gelf_getphdr.3 \
 			gelf_getrel.3 \
 			gelf_getrela.3 \
+			gelf_getsym.3 \
+			gelf_getsyminfo.3 \
+			gelf_getsymshndx.3 \
 			gelf_getversym.3 \
 			gelf_getverdef.3 \
 			gelf_getverdaux.3 \
@@ -107,11 +116,18 @@ notrans_dist_man3_MANS= elf32_checksum.3 \
 			gelf_newehdr.3 \
 			gelf_newphdr.3 \
 			gelf_offscn.3 \
+			gelf_update_auxv.3 \
 			gelf_update_ehdr.3 \
+			gelf_update_dyn.3 \
+			gelf_update_lib.3 \
+			gelf_update_move.3 \
 			gelf_update_phdr.3 \
 			gelf_update_shdr.3 \
 			gelf_update_rel.3 \
 			gelf_update_rela.3 \
+			gelf_update_sym.3 \
+			gelf_update_syminfo.3 \
+			gelf_update_symshndx.3 \
 			gelf_update_versym.3 \
 			gelf_update_verdef.3 \
 			gelf_update_verdaux.3 \
