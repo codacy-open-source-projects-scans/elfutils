@@ -1,6 +1,6 @@
 ## Process this file with automake to create Makefile.in
 ##
-## Copyright (C) 2000-2010, 2013, 2014, 2025 Red Hat, Inc.
+## Copyright (C) 2000-2010, 2013, 2014, 2025-2026 Red Hat, Inc.
 ## Copyright (C) 2012 Tilera Corporation
 ## This file is part of elfutils.
 ##
@@ -57,11 +57,11 @@ alpha_SRCS = alpha_init.c alpha_symbol.c alpha_retval.c alpha_regs.c \
 
 arm_SRCS = arm_init.c arm_symbol.c arm_regs.c arm_corenote.c \
 	   arm_auxv.c arm_attrs.c arm_retval.c arm_cfi.c arm_initreg.c \
-	   arm_machineflagname.c
+	   arm_initreg_sample.c arm_machineflagname.c
 
 aarch64_SRCS = aarch64_init.c aarch64_regs.c aarch64_symbol.c	\
 	       aarch64_corenote.c aarch64_retval.c aarch64_cfi.c \
-	       aarch64_initreg.c aarch64_unwind.c
+	       aarch64_initreg.c aarch64_initreg_sample.c aarch64_unwind.c
 
 sparc_SRCS = sparc_init.c sparc_symbol.c sparc_regs.c sparc_retval.c \
 	     sparc_corenote.c sparc64_corenote.c sparc_auxv.c sparc_attrs.c \

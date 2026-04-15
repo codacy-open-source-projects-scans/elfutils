@@ -1,5 +1,5 @@
-/* Populate process registers from a linux perf_events sample.
-   Copyright (C) 2025-2026 Red Hat, Inc.
+/* Populate process registers from a register sample.
+   Copyright (C) 2026 Red Hat Inc.
    This file is part of elfutils.
 
    This file is free software; you can redistribute it and/or modify
@@ -30,47 +30,22 @@
 # include <config.h>
 #endif
 
-#include <stdlib.h>
-#include <assert.h>
-#if defined(__x86_64__) && defined(__linux__)
-# include <linux/perf_event.h>
-# include <asm/perf_regs.h>
-#endif
-
-#define BACKEND x86_64_
+#define BACKEND arm_
 #include "libebl_CPU.h"
 #include "libebl_PERF_FLAGS.h"
-#if defined(__x86_64__) && defined(__linux__)
-# include "x86_initreg_sample.c"
-# define HAVE_X86_INITREG_SAMPLE
-#endif
 
 bool
-x86_64_sample_sp_pc (const Dwarf_Word *regs, uint32_t n_regs,
-		     const int *regs_mapping, size_t n_regs_mapping,
-		     Dwarf_Word *sp, Dwarf_Word *pc)
+arm_sample_sp_pc (const Dwarf_Word *regs, uint32_t n_regs,
+		  const int *regs_mapping, size_t n_regs_mapping,
+		  Dwarf_Word *sp, Dwarf_Word *pc)
 {
-  /* XXX for dwarf_regs indices, compare x86_64_initreg.c */
   return generic_sample_sp_pc (regs, n_regs, regs_mapping, n_regs_mapping,
-			   sp, 7 /* index of sp in dwarf_regs */,
-			   pc, 16 /* index of pc in dwarf_regs */);
+			       sp, 13 /* index of sp in dwarf_regs */,
+			       pc, 15 /* index of pc in dwarf_regs */);
 }
 
-bool
-x86_64_sample_perf_regs_mapping (Ebl *ebl,
-				 uint64_t perf_regs_mask, uint32_t abi,
-				 const int **regs_mapping,
-				 size_t *n_regs_mapping)
-{
-#ifdef HAVE_X86_INITREG_SAMPLE
-  return x86_sample_perf_regs_mapping (ebl, perf_regs_mask, abi,
-				       regs_mapping, n_regs_mapping);
-#else
-  (void) ebl;
-  (void) perf_regs_mask;
-  (void) abi;
-  (void) regs_mapping;
-  (void) n_regs_mapping;
-  return false;
-#endif
-}
+/* XXX The default ebl_set_initial_registers_sample implementation can
+   be used -- whereas the ptrace code in arm_initreg.c has to unpack a
+   register file of 32-bit words into a Dwarf_Word array, here we
+   should already be provided an appropriately-packed array
+   originating from perf_events.  */
