@@ -246,7 +246,18 @@ read_line_header (Dwarf *dbg, unsigned address_size,
     }
   lh->header_start = linep;
 
+  /* The header length is the number of bytes from here to the start of
+     the line number program, so it must stay within the unit (and thus
+     the section).  Without this check a bogus header_length makes
+     read_srcfiles/read_srclines compute an out-of-bounds end pointer
+     (header_start + header_length) and read past the section while
+     parsing the directory and file tables.  */
+  if (unlikely (lh->header_length > (size_t) (lineendp - linep)))
+    goto invalid_data;
+
   /* Next the minimum instruction length.  */
+  if (unlikely ((size_t) (lineendp - linep) < 1))
+    goto invalid_data;
   lh->minimum_instr_len = *linep++;
 
   /* Next the maximum operations per instruction, in version 4 format.  */
@@ -276,6 +287,10 @@ read_line_header (Dwarf *dbg, unsigned address_size,
 
   /* The opcode base.  */
   lh->opcode_base = *linep++;
+
+  /* If the line header uses the NVIDIA CUBIN extension, debug_str_offset's
+     actual value will be read from the last 4 bytes of the header.  */
+  lh->debug_str_offset = 0;
 
   /* Remember array with the standard opcode length (-1 to account for
      the opcode with value zero not being mentioned).  */
@@ -974,20 +989,18 @@ read_srclines (Dwarf *dbg,
 		    const char **dirarray
 		      = (const char **) &((*filesp)->info[nfiles]);
 
+		    /* Note in case of bad DWARF4 with missing
+		       DW_AT_comp_dir there might not be a (zero)
+		       directory name.  We cannot do much in this
+		       case.  Just keep the file relative.  */
 		    const char *dname = dirarray[diridx];
-		    size_t dnamelen = strlen (dname);
+		    size_t dnamelen = dname != NULL ? strlen (dname) : 0;
 
 		    new_file->info.name =
 		      libdw_alloc (dbg, char, 1, (dnamelen + fnamelen + 2));
 		    char *cp = new_file->info.name;
 
 		    if (dname != NULL)
-
-		      /* This value could be NULL in case the
-			 DW_AT_comp_dir was not present.  We
-			 cannot do much in this case.  Just
-			 keep the file relative.  */
-
 		      {
 			cp = stpcpy (cp, dname);
 			*cp++ = '/';

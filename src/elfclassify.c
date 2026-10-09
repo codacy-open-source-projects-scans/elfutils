@@ -858,7 +858,7 @@ check_ar_members (void)
       if (path_size < strlen (ar_path) + strlen (ar_name) + 3)
 	{
 	  path_size = strlen (ar_path) + strlen (ar_name) + 24;
-	  char *new_path = realloc (current_path, path_size);
+	  char *new_path = realloc (full_path, path_size);
 	  if (new_path == NULL)
 	    {
 	      issue (ENOMEM, N_("allocating a member string name storage"));
@@ -867,7 +867,6 @@ check_ar_members (void)
 	      break;
 	    }
 
-	  free (full_path);
 	  full_path = new_path;
 	}
 

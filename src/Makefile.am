@@ -32,8 +32,8 @@ bin_PROGRAMS = readelf nm size strip elflint findtextrel addr2line \
 	       elfcmp objdump ranlib strings ar unstrip stack elfcompress \
 	       elfclassify srcfiles
 
-if ENABLE_STACKTRACE
-bin_PROGRAMS += stacktrace
+if ENABLE_STACKPROF
+bin_PROGRAMS += stackprof
 endif
 
 noinst_LIBRARIES = libar.a
@@ -121,13 +121,16 @@ strings_LDADD = $(libelf) $(libeu) $(argp_LDADD)
 ar_LDADD = libar.a $(libelf) $(libeu) $(argp_LDADD) $(obstack_LIBS)
 unstrip_LDADD = $(libebl) $(libelf) $(libdw) $(libeu) $(argp_LDADD)
 stack_LDADD = $(libebl) $(libelf) $(libdw) $(libeu) $(argp_LDADD) $(demanglelib)
-if ENABLE_STACKTRACE
-stacktrace_LDADD = $(libebl) $(libelf) $(libdw) $(libeu) $(argp_LDADD)
-endif
 elfcompress_LDADD = $(libebl) $(libelf) $(libdw) $(libeu) $(argp_LDADD)
 elfclassify_LDADD = $(libelf) $(libdw) $(libeu) $(argp_LDADD)
 srcfiles_SOURCES = srcfiles.cxx
-srcfiles_LDADD = $(libdw) $(libelf) $(libeu)  $(argp_LDADD) $(libarchive_LIBS) $(libdebuginfod)
+srcfiles_LDADD = $(libdw) $(libelf) $(libeu) $(argp_LDADD) $(libarchive_LIBS) $(libdebuginfod)
+if ENABLE_STACKPROF
+stackprof_SOURCES = stackprof.cxx
+stackprof_CPPFLAGS = $(AM_CPPFLAGS) $(jsonc_CFLAGS)
+stackprof_CXXFLAGS = -Wall
+stackprof_LDADD = $(libebl) $(libdw) $(libelf) $(libeu) $(argp_LDADD) $(libpfm_LIBS) $(jsonc_LIBS)
+endif
 
 installcheck-binPROGRAMS: $(bin_PROGRAMS)
 	bad=0; pid=$$$$; list="$(bin_PROGRAMS)"; for p in $$list; do \

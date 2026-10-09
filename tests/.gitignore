@@ -12,6 +12,8 @@
 /arls
 /arsymtest
 /ar-extract-ar
+/ar-getarsym-mem
+/core-ioperm-huge
 /asm-tst1
 /asm-tst2
 /asm-tst3
@@ -41,6 +43,7 @@
 /dwarf-ranges
 /dwarf_default_lower_bound
 /dwarfcfi
+/dwelf-dwarf-debug-sup
 /dwelf_elf_e_machine_string
 /dwarf_language_lower_bound
 /dwelfgnucompressed
@@ -49,6 +52,7 @@
 /dwfl-bug-fd-leak
 /dwfl-bug-getmodules
 /dwfl-bug-report
+/dwfl-kernel-module-section-address
 /dwfl-proc-attach
 /dwfl-report-elf-align
 /dwfl-report-offline-memory
@@ -67,6 +71,7 @@
 /elfshphehdr
 /elfstrmerge
 /elfstrtab
+/elf-from-memory
 /elf-print-reloc-syms
 /emptyfile
 /eu_search_cfi

@@ -410,6 +410,21 @@ __libelf_decompress_zlib (void *buf_in, size_t size_in, size_t size_out)
 static void *
 __libelf_decompress_zstd (void *buf_in, size_t size_in, size_t size_out)
 {
+  /* Catch highly unlikely compression ratios so we don't allocate
+     some giant amount of memory for nothing.  The smallest zstd block
+     is a 3-byte block header followed by a 1-byte RLE payload, and a
+     single block expands to at most ZSTD_BLOCKSIZE_MAX bytes, so no
+     valid frame can expand by more than ZSTD_BLOCKSIZE_MAX / 4
+     (32768:1).  See doc/zstd_compression_format.md in the zstd
+     sources.  */
+  const size_t zstd_min_block = 3 + 1;
+  const size_t zstd_max_ratio = ZSTD_BLOCKSIZE_MAX / zstd_min_block;
+  if (unlikely (size_out / zstd_max_ratio > size_in))
+    {
+      __libelf_seterrno (ELF_E_INVALID_DATA);
+      return NULL;
+    }
+
   /* Malloc might return NULL when requesting zero size.  This is highly
      unlikely, it would only happen when the compression was forced.
      But we do need a non-NULL buffer to return and set as result.
@@ -583,7 +598,6 @@ elf_compress (Elf_Scn *scn, int type, unsigned int flags)
 
   Elf64_Xword sh_flags;
   Elf64_Word sh_type;
-  Elf64_Xword sh_addralign;
   union shdr
   {
     Elf32_Shdr *s32;
@@ -597,7 +611,6 @@ elf_compress (Elf_Scn *scn, int type, unsigned int flags)
 
       sh_flags = shdr.s32->sh_flags;
       sh_type = shdr.s32->sh_type;
-      sh_addralign = shdr.s32->sh_addralign;
     }
   else
     {
@@ -607,7 +620,6 @@ elf_compress (Elf_Scn *scn, int type, unsigned int flags)
 
       sh_flags = shdr.s64->sh_flags;
       sh_type = shdr.s64->sh_type;
-      sh_addralign = shdr.s64->sh_addralign;
     }
 
   if ((sh_flags & SHF_ALLOC) != 0)
@@ -669,7 +681,7 @@ elf_compress (Elf_Scn *scn, int type, unsigned int flags)
 	  chdr.ch_type = type;
 	  chdr.ch_reserved = 0;
 	  chdr.ch_size = orig_size;
-	  chdr.ch_addralign = sh_addralign;
+	  chdr.ch_addralign = orig_addralign;
 	  if (elfdata != MY_ELFDATA)
 	    {
 	      CONVERT (chdr.ch_type);

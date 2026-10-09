@@ -1,6 +1,6 @@
 ## Process this file with automake to create Makefile.in
 ##
-## Copyright (C) 1996-2019 Red Hat, Inc.
+## Copyright (C) 1996-2026 Red Hat, Inc.
 ## This file is part of elfutils.
 ##
 ## This file is free software; you can redistribute it and/or modify
@@ -41,7 +41,8 @@ check_PROGRAMS = arextract arsymtest newfile saridx scnnames sectiondump \
 		  find-prologues funcretval allregs rdwrmmap \
 		  dwfl-bug-addr-overflow arls dwfl-bug-fd-leak \
 		  dwfl-addr-sect dwfl-bug-report early-offscn \
-		  dwfl-bug-getmodules dwarf-getmacros dwarf-ranges addrcfi \
+		  dwfl-bug-getmodules dwfl-kernel-module-section-address \
+		  dwarf-getmacros dwarf-ranges addrcfi \
 		  dwfl-core-noncontig dwarfcfi \
 		  test-flag-nobits dwarf-getstring rerequest_tag \
 		  alldts typeiter typeiter2 low_high_pc \
@@ -58,6 +59,7 @@ check_PROGRAMS = arextract arsymtest newfile saridx scnnames sectiondump \
 		  elfgetzdata elfputzdata zstrptr emptyfile vendorelf \
 		  fillfile dwarf_default_lower_bound \
 		  dwarf_language_lower_bound dwarf-die-addr-die \
+		  dwarf-type \
 		  get-units-invalid get-units-split attr-integrate-skel \
 		  all-dwarf-ranges unit-info next_cfi \
 		  elfcopy addsections xlate_notes elfrdwrnop \
@@ -68,7 +70,9 @@ check_PROGRAMS = arextract arsymtest newfile saridx scnnames sectiondump \
 		  cu-dwp-section-info declfiles test-manyfuncs \
 		  eu_search_cfi eu_search_macros \
 		  eu_search_lines eu_search_die \
-		  ar-extract-ar \
+		  ar-extract-ar elf-from-memory ar-getarsym-mem \
+		  core-ioperm-huge \
+		  dwelf-dwarf-debug-sup \
 		  $(asm_TESTS)
 
 asm_TESTS = asm-tst1 asm-tst2 asm-tst3 asm-tst4 asm-tst5 \
@@ -150,6 +154,7 @@ TESTS = run-arextract.sh run-arsymtest.sh run-ar.sh newfile test-nlist \
 	run-readelf-compressed.sh \
 	run-readelf-const-values.sh \
 	run-readelf-cu-index.sh \
+	run-readelf-core-ioperm-huge.sh \
 	run-varlocs-self.sh run-exprlocs-self.sh \
 	run-readelf-test1.sh run-readelf-test2.sh run-readelf-test3.sh \
 	run-readelf-test4.sh run-readelf-twofiles.sh \
@@ -163,6 +168,7 @@ TESTS = run-arextract.sh run-arsymtest.sh run-ar.sh newfile test-nlist \
 	run-debuglink.sh run-debugaltlink.sh run-buildid.sh \
 	dwfl-bug-addr-overflow run-addrname-test.sh \
 	dwfl-bug-fd-leak dwfl-bug-report dwfl-report-segment-contiguous \
+	dwfl-kernel-module-section-address \
 	run-dwfl-bug-offline-rel.sh run-dwfl-addr-sect.sh \
 	run-disasm-x86.sh run-disasm-x86-64.sh \
 	run-early-offscn.sh run-dwarf-getmacros.sh run-dwarf-ranges.sh \
@@ -206,11 +212,12 @@ TESTS = run-arextract.sh run-arsymtest.sh run-ar.sh newfile test-nlist \
 	elfshphehdr run-lfs-symbols.sh run-dwelfgnucompressed.sh \
 	run-elfgetchdr.sh \
 	run-elfgetzdata.sh run-elfputzdata.sh run-zstrptr.sh \
-	run-compress-test.sh \
+	run-compress-test.sh run-compress-test-out.sh \
 	run-readelf-zdebug.sh run-readelf-zdebug-rel.sh \
 	emptyfile vendorelf fillfile dwarf_default_lower_bound \
 	dwarf_language_lower_bound \
 	run-dwarf-die-addr-die.sh \
+	run-dwarf-type.sh \
 	run-get-units-invalid.sh run-get-units-split.sh \
 	run-attr-integrate-skel.sh \
 	run-all-dwarf-ranges.sh run-unit-info.sh \
@@ -238,7 +245,9 @@ TESTS = run-arextract.sh run-arsymtest.sh run-ar.sh newfile test-nlist \
 	run-sysroot.sh \
 	run-test-manyfuncs.sh \
 	run-eu-search-cfi.sh run-eu-search-macros.sh \
-	run-eu-search-lines.sh run-eu-search-die.sh
+	run-eu-search-lines.sh run-eu-search-die.sh \
+	run-dwelf-dwarf-debug-sup.sh \
+	elf-from-memory ar-getarsym-mem
 
 if !BIARCH
 export ELFUTILS_DISABLE_BIARCH = 1
@@ -298,7 +307,8 @@ TESTS += run-srcfiles-self.sh \
 	 run-debuginfod-client-profile.sh \
 	 run-debuginfod-find-metadata.sh \
 	 run-debuginfod-longsource.sh \
-	 run-debuginfod-homesite.sh
+	 run-debuginfod-homesite.sh \
+	 run-debuginfod-debug-map.sh
 if LZMA
 TESTS += run-debuginfod-seekable.sh
 endif
@@ -313,7 +323,7 @@ TESTS += run-debuginfod-ima-verification.sh
 endif
 endif
 
-if HAVE_CXX11
+if HAVE_CXX20
 check_PROGRAMS += funcretval_test++11
 funcretval_test__11_SOURCES = funcretval_test++11.cxx
 TESTS += run-funcretval++11.sh
@@ -322,6 +332,14 @@ endif
 check_PROGRAMS += funcretval_test_struct
 funcretval_test_struct_SOURCES = funcretval_test_struct.c
 TESTS += run-funcretval-struct-native.sh
+
+if ENABLE_STACKPROF
+TESTS += run-stackprof-user.sh run-stackprof-user-gprof.sh
+TESTS += run-stackprof-system.sh run-stackprof-system-gprof.sh
+endif
+if HAVE_LIBPFM
+export HAVE_LIBPFM = 1
+endif
 
 EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     run-ar-N.sh \
@@ -365,11 +383,13 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     run-addrscopes.sh run-strings-test.sh run-funcscopes.sh \
 	     run-nm-syms.sh testfilesyms32.bz2 testfilesyms64.bz2 \
 	     run-nm-self.sh run-readelf-self.sh run-readelf-info-plus.sh \
+	     testfile-main-split.bz2 testfile-dwp-main-split.bz2 \
 	     run-srcfiles-self.sh \
 		 run-readelf-compressed.sh \
 	     run-readelf-compressed-zstd.sh \
 	     run-readelf-const-values.sh testfile-const-values.debug.bz2 \
 	     run-readelf-cu-index.sh \
+	     run-readelf-core-ioperm-huge.sh \
 	     run-addrcfi.sh run-dwarfcfi.sh \
 	     testfile11-debugframe.bz2 testfile12-debugframe.bz2 \
 	     testfileaarch64-debugframe.bz2 testfilearm-debugframe.bz2 \
@@ -411,7 +431,7 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     testfile45.S.bz2 testfile45.expect.bz2 run-disasm-x86-64.sh \
 	     testfile46.bz2 testfile47.bz2 testfile48.bz2 testfile48.debug.bz2 \
 	     testfile49.bz2 testfile50.bz2 testfile51.bz2 \
-	     testfile-macros-0xff.bz2 \
+	     testfile-macros-0xff.bz2 testfile-macros-opcode0.bz2 \
 	     run-readelf-macro.sh testfilemacro.bz2 testfileclangmacro.bz2 \
 	     run-readelf-loc.sh testfileloc.bz2 \
 	     splitdwarf4-not-split4.dwo.bz2 \
@@ -575,13 +595,14 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     testfile-zgabi32.bz2 testfile-zgabi64.bz2 \
 	     testfile-zgabi32be.bz2 testfile-zgabi64be.bz2 \
 	     run-elfgetchdr.sh run-elfgetzdata.sh run-elfputzdata.sh \
-	     run-zstrptr.sh run-compress-test.sh \
+	     run-zstrptr.sh run-compress-test.sh run-compress-test-out.sh \
 	     run-disasm-bpf.sh \
 	     testfile-bpf-dis1.expect.bz2 testfile-bpf-dis1.o.bz2 \
 	     run-reloc-bpf.sh \
 	     testfile-bpf-reloc.expect.bz2 testfile-bpf-reloc.o.bz2 \
 	     testfile-m68k-core.bz2 testfile-m68k.bz2 testfile-m68k-s.bz2 \
 	     run-dwarf-die-addr-die.sh \
+	     run-dwarf-type.sh \
 	     run-get-units-invalid.sh run-get-units-split.sh \
 	     testfile-hello4.dwo.bz2 testfile-hello5.dwo.bz2 \
 	     testfile-splitdwarf-4.bz2 testfile-splitdwarf-5.bz2 \
@@ -589,6 +610,7 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     run-attr-integrate-skel.sh \
 	     run-all-dwarf-ranges.sh testfilesplitranges4.debug.bz2 \
 	     testfile-ranges-hello.dwo.bz2 testfile-ranges-world.dwo.bz2 \
+	     testfile-frob-single.bz2 \
 	     run-unit-info.sh run-next-cfi.sh run-next-cfi-self.sh \
 	     testfile-riscv64.bz2 testfile-riscv64-s.bz2 \
 	     testfile-riscv64-core.bz2 \
@@ -640,6 +662,9 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     run-debuginfod-find-metadata.sh \
 	     run-debuginfod-longsource.sh \
 	     run-debuginfod-homesite.sh \
+	     run-debuginfod-debug-map.sh \
+	     testfile-debug-map.bz2 \
+	     testfile-debug-map.c \
 	     debuginfod-rpms/fedora30/hello2-1.0-2.src.rpm \
 	     debuginfod-rpms/fedora30/hello2-1.0-2.x86_64.rpm \
 	     debuginfod-rpms/fedora30/hello2-debuginfo-1.0-2.x86_64.rpm \
@@ -717,12 +742,18 @@ EXTRA_DIST = run-arextract.sh run-arsymtest.sh run-ar.sh \
 	     testfile-sysroot.tar.bz2 run-sysroot.sh \
 	     run-test-manyfuncs.sh manyfuncs.c \
 	     run-debuginfod-seekable.sh thread-safety-subr.sh \
+	     run-stackprof-user.sh run-stackprof-user-gprof.sh \
+	     run-stackprof-system.sh run-stackprof-system-gprof.sh \
+	     stackprof-subr.sh \
 	     run-eu-search-cfi.sh run-eu-search-macros.sh \
-	     run-eu-search-lines.sh run-eu-search-die.sh
-
+	     run-eu-search-lines.sh run-eu-search-die.sh \
+	     run-dwelf-dwarf-debug-sup.sh \
+	     testfile-dwarf5-ref-sup.bz2 testfile-dwarf5.sup.bz2 \
+	     run-dwflst-tracker-concurrent.sh
 
 if USE_HELGRIND
-valgrind_cmd=valgrind -q --tool=helgrind --error-exitcode=1 --track-fds=yes
+valgrind_cmd=valgrind -q --tool=helgrind --error-exitcode=1 --track-fds=yes \
+	@HELGRIND_TRACK_DESTROY@
 else
 if USE_VALGRIND
 valgrind_cmd=valgrind -q --leak-check=full --error-exitcode=1 --track-fds=yes
@@ -777,9 +808,22 @@ endif
 libebl = ../libebl/libebl.a ../backends/libebl_backends.a ../libcpu/libcpu.a
 libeu = ../lib/libeu.a
 
+check_PROGRAMS += dwflst-tracker-concurrent
+
+TESTS += run-dwflst-tracker-concurrent.sh
+
+dwflst_tracker_concurrent_CPPFLAGS = $(AM_CPPFLAGS) \
+                                     -I$(top_srcdir)/libdwfl_stacktrace
+
+dwflst_tracker_concurrent_LDFLAGS = -pthread $(AM_LDFLAGS)
+
+dwflst_tracker_concurrent_LDADD = $(libdw) $(libelf)
+
 arextract_LDADD = $(libelf)
 arsymtest_LDADD = $(libelf)
 ar_extract_ar_LDADD = $(libelf)
+ar_getarsym_mem_LDADD = $(libelf)
+core_ioperm_huge_LDADD = $(libelf)
 newfile_LDADD = $(libelf)
 saridx_LDADD = $(libeu) $(libelf)
 scnnames_LDADD = $(libelf)
@@ -830,6 +874,8 @@ dwfl_bug_fd_leak_LDADD = $(libeu) $(libdw) $(libebl) $(libelf)
 dwfl_bug_report_LDADD = $(libdw) $(libebl) $(libelf)
 dwfl_bug_getmodules_LDADD = $(libeu) $(libdw) $(libebl) $(libelf)
 dwfl_addr_sect_LDADD = $(libeu) $(libdw) $(libebl) $(libelf) $(argp_LDADD)
+dwfl_kernel_module_section_address_LDADD = \
+	$(libdw) $(libelf)
 dwfl_core_noncontig_LDADD = $(libdw) $(libelf)
 dwarf_getmacros_LDADD = $(libdw)
 dwarf_ranges_LDADD = $(libdw)
@@ -866,6 +912,7 @@ deleted_lib_so_CFLAGS = $(fpic_CFLAGS) -fasynchronous-unwind-tables
 aggregate_size_LDADD = $(libdw) $(libelf) $(argp_LDADD)
 peel_type_LDADD = $(libdw) $(libelf) $(argp_LDADD)
 vdsosyms_LDADD = $(libeu) $(libdw) $(libelf)
+elf_from_memory_LDADD = ../libdw/libdw.a -lz $(zip_LIBS) $(libelf) $(libebl) $(libeu) -ldl -lpthread
 getsrc_die_LDADD = $(libeu) $(libdw) $(libelf)
 strptr_LDADD = $(libelf)
 newdata_LDADD = $(libelf)
@@ -886,6 +933,7 @@ fillfile_LDADD = $(libelf)
 dwarf_default_lower_bound_LDADD = $(libdw)
 dwarf_language_lower_bound_LDADD = $(libdw)
 dwarf_die_addr_die_LDADD = $(libdw)
+dwarf_type_LDADD = $(libdw)
 get_units_invalid_LDADD = $(libdw)
 get_units_split_LDADD = $(libdw)
 attr_integrate_skel_LDADD = $(libdw)
@@ -898,6 +946,7 @@ debuginfod_build_id_find_LDADD = $(libelf) $(libdw)
 xlate_notes_LDADD = $(libelf)
 elfrdwrnop_LDADD = $(libelf)
 dwelf_elf_e_machine_string_LDADD = $(libelf) $(libdw)
+dwelf_dwarf_debug_sup_LDADD = $(libelf) $(libdw)
 getphdrnum_LDADD = $(libelf) $(libdw)
 leb128_LDADD = $(libelf) $(libdw)
 read_unaligned_LDADD = $(libelf) $(libdw)

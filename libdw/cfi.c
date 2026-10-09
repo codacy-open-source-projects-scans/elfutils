@@ -146,6 +146,7 @@ execute_cfi (Dwarf_CFI *cache,
 	  /* These cases move LOC, i.e. "create a new table row".  */
 
 	case DW_CFA_advance_loc1:
+	  cfi_assert (program + 1 <= end);
 	  operand = *program++;
 	  FALLTHROUGH;
 	case DW_CFA_advance_loc + 0 ... DW_CFA_advance_loc + CFI_PRIMARY_MAX:

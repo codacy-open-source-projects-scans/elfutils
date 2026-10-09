@@ -126,7 +126,7 @@ __libdw_form_val_compute_len (struct Dwarf_CU *cu, unsigned int form,
       if (valp >= endp)
 	goto invalid;
       get_uleb128 (u128, valp, endp);
-      if (*valp == DW_FORM_indirect || *valp == DW_FORM_implicit_const)
+      if (u128 == DW_FORM_indirect || u128 == DW_FORM_implicit_const)
 	return (size_t) -1;
       result = __libdw_form_val_len (cu, u128, valp);
       if (result != (size_t) -1)

@@ -216,6 +216,8 @@ dwarf_next_cfi (const unsigned char e_ident[],
 	      if (sized_augmentation)
 		{
 		  /* Skip LSDA pointer encoding byte.  */
+		  if (bytes >= limit)
+		    goto invalid;
 		  encoding = *bytes++;
 		  entry->cie.fde_augmentation_data_size
 		    += encoded_value_size (data, e_ident, encoding, NULL);
@@ -226,6 +228,8 @@ dwarf_next_cfi (const unsigned char e_ident[],
 	      if (sized_augmentation)
 		{
 		  /* Skip FDE address encoding byte.  */
+		  if (bytes >= limit)
+		    goto invalid;
 		  bytes++;
 		  continue;
 		}
@@ -234,6 +238,8 @@ dwarf_next_cfi (const unsigned char e_ident[],
 	      if (sized_augmentation)
 		{
 		  /* Skip encoded personality routine pointer. */
+		  if (bytes >= limit)
+		    goto invalid;
 		  encoding = *bytes++;
 		  bytes += encoded_value_size (data, e_ident, encoding, bytes);
 		  continue;

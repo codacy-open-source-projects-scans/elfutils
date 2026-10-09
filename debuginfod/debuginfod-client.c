@@ -233,7 +233,9 @@ static const char *cache_xdg_name = "debuginfod_client";
 /* URLs of debuginfods, separated by url_delim. */
 static const char *url_delim =  " ";
 
-/* Timeout for debuginfods, in seconds (to get at least 100K). */
+/* Timeout for debuginfods, in seconds.  Applies separately to the server
+   connect phase and to download at least 100K once connection is
+   established. */
 static const long default_timeout = 90;
 
 /* Default retry count for download error. */
@@ -1005,9 +1007,18 @@ init_handle(debuginfod_client *client,
                            timeout);
       curl_easy_setopt_ck (data->handle, CURLOPT_LOW_SPEED_LIMIT,
                            100 * 1024L);
+
+      /* CURLOPT_LOW_SPEED_LIMIT/_TIME don't apply during the server connection
+         phase.  Set CURLOPT_CONNECTTIMEOUT_MS as well so the timeout also
+         limits how long we wait for an unresponsive server.  */
+      long connect_timeout_ms = (timeout > LONG_MAX / 1000L
+                                 ? LONG_MAX : timeout * 1000L);
+      curl_easy_setopt_ck (data->handle, CURLOPT_CONNECTTIMEOUT_MS,
+                           connect_timeout_ms);
     }
   curl_easy_setopt_ck(data->handle, CURLOPT_FILETIME, (long) 1);
   curl_easy_setopt_ck(data->handle, CURLOPT_FOLLOWLOCATION, (long) 1);
+  curl_easy_setopt_ck(data->handle, CURLOPT_MAXREDIRS, (long) 6);
   curl_easy_setopt_ck(data->handle, CURLOPT_FAILONERROR, (long) 1);
   curl_easy_setopt_ck(data->handle, CURLOPT_NOSIGNAL, (long) 1);
   if (h_callback)
@@ -1186,12 +1197,16 @@ perform_queries(CURLM *curlm, CURL **target_handle, struct handle_data *data, de
                     pa = (dl >= (double)(LONG_MAX+1UL) ? LONG_MAX : (long)dl);
 #endif
                 }
-              
-              if ((*c->progressfn) (c, pa, dl_size == -1 ? 0 : dl_size))
-		{
-		  c->progressfn_cancel = true;
-		  break;
-		}
+            }
+
+          /* Invoke the callback even before committing to a server, so
+             the caller can cancel while still connecting or waiting for
+             the first response bytes.  With no target handle yet, dl_size
+             is still -1, so pass 0 to signal the "early stage". */
+          if ((*c->progressfn) (c, pa, dl_size == -1 ? 0 : dl_size))
+            {
+              c->progressfn_cancel = true;
+              break;
             }
         }
       /* Check to see if we are downloading something which exceeds maxsize, if set.*/
@@ -1554,6 +1569,9 @@ debuginfod_verify_hash(debuginfod_client *c, const unsigned char *hash, int size
   EVP_PKEY_CTX *ctx;
   const EVP_MD *md;
 
+  if (siglen < (int) sizeof(struct signature_v2_hdr))
+    return -EBADMSG;
+
   memcpy(&hdr, sig, sizeof(struct signature_v2_hdr)); /* avoid just aliasing */
 
   if (c->verbose_fd >= 0)
@@ -1636,6 +1654,21 @@ debuginfod_validate_imasig (debuginfod_client *c, int fd)
     if (!hdr_data_len || 1 != sscanf(hdr_data_len + strlen("x-debuginfod-size:") , "%ld", &data_len))
     {
       rc = -ENODATA;
+      goto exit_validate;
+    }
+
+    /* Don't trust the size the server sent us, double check against the
+       file size that we actually got.  That way we calculate the hash
+       over the whole file and not a shorter (possibly empty) data size.  */
+    struct stat st;
+    if (fstat (fd, &st) == -1)
+    {
+      rc = -errno;
+      goto exit_validate;
+    }
+    if (data_len != st.st_size)
+    {
+      rc = -EBADMSG;
       goto exit_validate;
     }
 
@@ -1897,7 +1930,7 @@ debuginfod_query_server_by_buildid (debuginfod_client *c,
     {
       if (vfd >= 0)
 	dprintf (vfd, "checking filename\n");
-      if (filename[0] != '/') // must start with /
+      if (filename[0] == '\0') // must not be empty
 	{
 	  rc = -EINVAL;
 	  goto out;
@@ -2156,7 +2189,9 @@ debuginfod_query_server_by_buildid (debuginfod_client *c,
   size_t escaped_strlen = 0;
   if (filename)
     {
-      escaped_string = curl_easy_escape(&target_handle, filename+1, 0);
+      escaped_string = curl_easy_escape(&target_handle,
+                                        filename[0] == '/' ? filename+1 : filename,
+                                        0);
       if (!escaped_string)
         {
           rc = -ENOMEM;

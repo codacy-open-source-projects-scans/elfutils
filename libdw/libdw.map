@@ -392,6 +392,19 @@ ELFUTILS_0.193 {
     dwarf_language_lower_bound;
 } ELFUTILS_0.192;
 
+ELFUTILS_0.196 {
+  global:
+    dwelf_dwarf_debug_sup;
+    dwelf_dwarf_debug_dwp;
+    dwarf_begin_type;
+    dwarf_get_type;
+} ELFUTILS_0.193;
+
+ELFUTILS_0.197 {
+  global:
+    dwarf_begin_elf_type;
+} ELFUTILS_0.196;
+
 /* XXX Experimental libdwfl_stacktrace API. */
 ELFUTILS_0.193_EXPERIMENTAL {
   global:
@@ -411,3 +424,11 @@ ELFUTILS_0.194_EXPERIMENTAL {
   global:
     dwflst_sample_getframes;
 } ELFUTILS_0.193_EXPERIMENTAL;
+
+ELFUTILS_0.196_EXPERIMENTAL {
+  global:
+    dwflst_arch_from_uname;
+    dwflst_arch_expected_frame_nregs;
+    dwflst_arch_sp_dwarf_reg;
+    dwflst_arch_sp_perf_reg;
+} ELFUTILS_0.194_EXPERIMENTAL;

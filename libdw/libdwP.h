@@ -85,6 +85,8 @@ enum
     IDX_debug_rnglists,
     IDX_debug_cu_index,
     IDX_debug_tu_index,
+    IDX_debug_sup,
+    IDX_debug_dwp,
     IDX_gnu_debugaltlink,
     IDX_last
   };
@@ -154,15 +156,6 @@ enum
 
 #include "dwarf_sig8_hash.h"
 
-/* The type of Dwarf object, sorted by preference
-   (if there is a higher order type, we pick that one over the others).  */
-enum dwarf_type
-  {
-    TYPE_UNKNOWN = 0,
-    TYPE_GNU_LTO = 16,
-    TYPE_DWO = 32,
-    TYPE_PLAIN = 64,
-  };
 
 /* This is the structure representing the debugging state.  */
 struct Dwarf
@@ -257,7 +250,7 @@ struct Dwarf
   /* Similar for addrx/constx, which will come from .debug_addr section.  */
   struct Dwarf_CU *fake_addr_cu;
 
-  enum dwarf_type type;
+  Dwarf_Type type;
 
   /* Supporting lock for internal memory handling.  Ensures threads that have
      an entry in the mem_tails array are not disturbed by new threads doing
@@ -486,6 +479,8 @@ INTDECL (dwarf_attr)
 INTDECL (dwarf_attr_integrate)
 INTDECL (dwarf_begin)
 INTDECL (dwarf_begin_elf)
+INTDECL (dwarf_begin_elf_type)
+INTDECL (dwarf_begin_type)
 INTDECL (dwarf_child)
 INTDECL (dwarf_cu_dwp_section_info)
 INTDECL (dwarf_default_lower_bound)
@@ -508,6 +503,7 @@ INTDECL (dwarf_getaranges)
 INTDECL (dwarf_getlocation_die)
 INTDECL (dwarf_getsrcfiles)
 INTDECL (dwarf_getsrclines)
+INTDECL (dwarf_get_type)
 INTDECL (dwarf_get_units)
 INTDECL (dwarf_hasattr)
 INTDECL (dwarf_haschildren)
@@ -1282,6 +1278,8 @@ str_offsets_base_off (Dwarf *dbg, Dwarf_CU *cu)
   uint64_t unit_length;
   uint16_t version;
 
+  if (unlikely (readendp - readp < 4))
+    goto no_header;
   unit_length = read_4ubyte_unaligned_inc (dbg, readp);
   if (unlikely (unit_length == 0xffffffff))
     {
@@ -1371,6 +1369,8 @@ __libdw_cu_ranges_base (Dwarf_CU *cu)
 	      const unsigned char *const dataend
 		= (unsigned char *) data->d_buf + data->d_size;
 
+	      if (unlikely (readp > dataend - 4))
+		goto no_header;
 	      uint64_t unit_length = read_4ubyte_unaligned_inc (dbg, readp);
 	      unsigned int offset_size = 4;
 	      if (unlikely (unit_length == 0xffffffff))
@@ -1454,6 +1454,8 @@ __libdw_cu_locs_base (Dwarf_CU *cu)
 	  const unsigned char *const dataend
 	    = (unsigned char *) data->d_buf + data->d_size;
 
+	  if (unlikely (readp > dataend - 4))
+	    goto no_header;
 	  uint64_t unit_length = read_4ubyte_unaligned_inc (dbg, readp);
 	  unsigned int offset_size = 4;
 	  if (unlikely (unit_length == 0xffffffff))
